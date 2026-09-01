@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "check:env": "node check-env.js",
+    "check:connect": "node check-connect.js"
   },
   "dependencies": {
     "express": "^4.19.2",

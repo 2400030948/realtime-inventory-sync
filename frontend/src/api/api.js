@@ -7,5 +7,6 @@ const api = axios.create({
 export const getProducts = (outlet) => api.get('/api/products', { params: { outlet } });
 export const adjustStock = (id, delta) => api.patch(`/api/products/${id}/adjust`, { delta });
 export const placeOrder = (outlet, items) => api.post('/api/orders', { outlet, items });
+export const getOrders = (outlet) => api.get('/api/orders', { params: { outlet } });
 
 export default api;
