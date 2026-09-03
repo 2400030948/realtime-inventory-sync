@@ -1,51 +1,31 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useMemo } from 'react';
 import StatsCards from './StatsCards';
 import ProductCard from './ProductCard';
-import CreateProductModal from './CreateProductModal';
-import { getProducts, adjustStock as apiAdjust } from '../api/api';
-import { IconPlus, IconBox } from './Icons';
+import OrdersView from './OrdersView';
+import RecentActivity from './RecentActivity';
+import CreateOrderModal from './CreateOrderModal';
+import { IconBox, IconWarning, IconCheck, IconReceipt } from './Icons';
 
+// Dashboard is purely derived from props — initial loading is done in App.
 export default function DashboardView({
   outlet,
   products,
-  setProducts,
+  loading,
   search,
-  showCreate,
-  setShowCreate,
+  orders,
+  loadingOrders,
+  onAddProduct,
+  onPlaceOrder,
   toast,
 }) {
-  const [flashing] = useState({}); // reserved for future highlight on update
-  const lastIds = useRef(new Set());
-  // Note: setFlashing intentionally unused right now — the prop is wired so
-  // we can add a "pulse on socket update" animation later without an API change.
-  const [loading, setLoading] = useState(false);
-
-  // Initial load + refresh when outlet changes
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    getProducts(outlet)
-      .then((res) => {
-        if (cancelled) return;
-        setProducts(res.data);
-        lastIds.current = new Set(res.data.map((p) => p._id));
-      })
-      .catch((err) => toast.danger('Failed to load products', err.message))
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outlet]);
-
-  // Filtered & sorted
+  // Filtered & sorted products (low-stock first, then most recently updated).
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = (search || '').trim().toLowerCase();
     const list = q
       ? products.filter(
           (p) =>
             p.name.toLowerCase().includes(q) ||
-            p.sku.toLowerCase().includes(q)
+            (p.sku || '').toLowerCase().includes(q)
         )
       : products;
     return [...list].sort((a, b) => {
@@ -63,46 +43,44 @@ export default function DashboardView({
     const lowStock = products.filter((p) => p.quantity <= p.lowStockThreshold).length;
     const inventoryValue = products.reduce((acc, p) => acc + p.quantity * p.price, 0);
     const outOfStock = products.filter((p) => p.quantity === 0).length;
+    const healthy = totalProducts - lowStock;
     return [
-      { label: 'Total products', value: totalProducts, tone: 'accent' },
-      { label: 'Low stock',      value: lowStock,       tone: lowStock > 0 ? 'warn' : 'good' },
-      { label: 'Out of stock',   value: outOfStock,     tone: outOfStock > 0 ? 'warn' : 'good' },
+      { label: 'Total SKUs', value: totalProducts, tone: 'accent', note: `${healthy} healthy` },
+      { label: 'Needs attention', value: lowStock, tone: lowStock > 0 ? 'warn' : 'good', note: lowStock ? 'Below threshold' : 'All stocked' },
+      { label: 'Out of stock', value: outOfStock, tone: outOfStock > 0 ? 'danger' : 'good', note: outOfStock ? 'Immediate action' : 'No gaps' },
       {
         label: 'Inventory value',
         value: `$${inventoryValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
         tone: 'good',
+        note: 'Current outlet',
       },
     ];
   }, [products]);
 
-  const handleAdjust = async (id, delta) => {
-    // Optimistic update for snappy UI
-    const prev = products;
-    setProducts((curr) =>
-      curr.map((p) => (p._id === id ? { ...p, quantity: p.quantity + delta } : p))
-    );
-    try {
-      await apiAdjust(id, delta);
-    } catch (err) {
-      setProducts(prev);
-      toast.danger('Update failed', err.response?.data?.message || err.message);
-    }
-  };
-
-  const handleCreated = (newProduct) => {
-    setProducts((curr) => {
-      // Replace if it already exists, otherwise prepend
-      const exists = curr.some((p) => p._id === newProduct._id);
-      return exists
-        ? curr.map((p) => (p._id === newProduct._id ? newProduct : p))
-        : [newProduct, ...curr];
-    });
-    setShowCreate(false);
-    toast.success('Product created', `${newProduct.name} added to ${newProduct.outlet}`);
-  };
+  const lowStockCount = products.filter((p) => p.quantity <= p.lowStockThreshold).length;
 
   return (
     <>
+      <section className="hero-band">
+        <div className="hero-copy">
+          <div className="eyebrow">Live inventory command</div>
+          <h2>{outlet} is ready for the next order.</h2>
+          <p>
+            Track stock movement, catch low inventory early, and adjust quantities as updates arrive.
+          </p>
+        </div>
+        <div className="hero-metrics">
+          <div className="metric-chip">
+            <IconCheck size={16} />
+            <span>{products.length} products synced</span>
+          </div>
+          <div className={`metric-chip ${products.some((p) => p.quantity <= p.lowStockThreshold) ? 'warn' : ''}`}>
+            <IconWarning size={16} />
+            <span>{lowStockCount} low-stock alert{lowStockCount === 1 ? '' : 's'}</span>
+          </div>
+        </div>
+      </section>
+
       <StatsCards stats={stats} />
 
       <div className="panel">
@@ -115,15 +93,26 @@ export default function DashboardView({
                 : `${filtered.length} item${filtered.length !== 1 ? 's' : ''}${search ? ` · filtered by "${search}"` : ''}`}
             </div>
           </div>
-          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
-            <IconPlus size={16} /> Add product
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn btn-secondary" onClick={onPlaceOrder}>
+              <IconReceipt size={16} /> Place order
+            </button>
+            <button className="btn btn-primary" onClick={onAddProduct}>
+              <IconBox size={16} /> Add product
+            </button>
+          </div>
         </div>
 
         <div className="panel-body">
+          {loading ? (
+            <div className="center-loader">
+              <span className="spinner" /> &nbsp; Loading products…
+            </div>
+          ) : (
+          <>
           {filtered.length === 0 ? (
             <div className="empty">
-              <div className="emoji">📦</div>
+              <div className="empty-icon"><IconBox size={26} /></div>
               <div className="title">
                 {search ? 'No matches' : 'No products yet'}
               </div>
@@ -136,7 +125,7 @@ export default function DashboardView({
                 <button
                   className="btn btn-primary"
                   style={{ marginTop: 16 }}
-                  onClick={() => setShowCreate(true)}
+                  onClick={onAddProduct}
                 >
                   <IconBox size={16} /> Create product
                 </button>
@@ -148,22 +137,39 @@ export default function DashboardView({
                 <ProductCard
                   key={p._id}
                   product={p}
-                  onAdjust={handleAdjust}
-                  flashing={!!flashing[p._id]}
+                  toast={toast}
                 />
               ))}
             </div>
           )}
+          </>
+          )}
         </div>
       </div>
 
-      {showCreate && (
-        <CreateProductModal
-          outlet={outlet}
-          onClose={() => setShowCreate(false)}
-          onCreated={handleCreated}
-        />
-      )}
+      <div className="dashboard-grid">
+        <div className="panel">
+          <div className="panel-head">
+            <div>
+              <h2>Recent orders · {outlet}</h2>
+              <div className="sub">
+                {loadingOrders
+                  ? 'Loading…'
+                  : `${orders.length} order${orders.length !== 1 ? 's' : ''}`}
+              </div>
+            </div>
+          </div>
+          <div className="panel-body">
+            <OrdersView orders={orders} loading={loadingOrders} outlet={outlet} compact />
+          </div>
+        </div>
+
+        <RecentActivity outlet={outlet} />
+      </div>
     </>
   );
 }
+
+// Expose the order creation modal as a static property so callers can render
+// <DashboardView.OrderCreator .../> next to the dashboard.
+DashboardView.OrderCreator = CreateOrderModal;

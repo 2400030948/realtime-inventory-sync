@@ -9,8 +9,15 @@ export default function Topbar({
   search,
   onSearch,
   connected,
+  reconnecting,
   right,
 }) {
+  const status = reconnecting ? 'reconnecting' : connected ? 'online' : 'offline';
+  const statusLabel = reconnecting
+    ? 'Reconnecting'
+    : connected
+    ? 'Live'
+    : 'Offline';
   return (
     <header className="topbar">
       <div>
@@ -26,6 +33,7 @@ export default function Topbar({
             value={search}
             placeholder="Search products…"
             onChange={(e) => onSearch(e.target.value)}
+            aria-label="Search products"
           />
         </div>
 
@@ -40,9 +48,14 @@ export default function Topbar({
           ))}
         </select>
 
-        <span className={`connection ${connected ? 'online' : 'offline'}`}>
+        <span
+          className={`connection ${status}`}
+          aria-live="polite"
+          aria-label={`Socket connection ${statusLabel}`}
+          title={statusLabel}
+        >
           <span className="dot" />
-          {connected ? 'Live' : 'Offline'}
+          {statusLabel}
         </span>
 
         {right}

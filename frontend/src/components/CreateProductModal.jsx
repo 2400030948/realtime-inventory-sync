@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import Modal from './Modal';
-import api from '../api/api';
+import { createProduct } from '../api/api';
 
-const OUTLETS = ['Outlet-A', 'Outlet-B', 'Outlet-C'];
-
-export default function CreateProductModal({ outlet, onClose, onCreated }) {
+export default function CreateProductModal({ outlet, outlets = [], onClose, onCreated }) {
   const [form, setForm] = useState({
     name: '',
     sku: '',
@@ -46,7 +44,7 @@ export default function CreateProductModal({ outlet, onClose, onCreated }) {
         price: Number(form.price),
         lowStockThreshold: Number(form.lowStockThreshold),
       };
-      const { data } = await api.post('/api/products', payload);
+      const { data } = await createProduct(payload);
       onCreated(data);
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
@@ -107,7 +105,9 @@ export default function CreateProductModal({ outlet, onClose, onCreated }) {
           <div className="field">
             <label>Outlet</label>
             <select value={form.outlet} onChange={update('outlet')}>
-              {OUTLETS.map((o) => <option key={o} value={o}>{o}</option>)}
+              {(outlets && outlets.length ? outlets : [outlet]).map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
             </select>
           </div>
         </div>

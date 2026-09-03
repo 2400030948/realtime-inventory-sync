@@ -1,10 +1,9 @@
-import { IconGrid, IconBox, IconReceipt, IconSettings } from './Icons';
+import { IconGrid, IconBox, IconReceipt } from './Icons';
 
 const ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: IconGrid },
   { id: 'products',  label: 'Products',  icon: IconBox },
   { id: 'orders',    label: 'Orders',    icon: IconReceipt },
-  { id: 'settings',  label: 'Settings',  icon: IconSettings, disabled: true },
 ];
 
 export default function Sidebar({ active, onNavigate }) {
@@ -13,8 +12,8 @@ export default function Sidebar({ active, onNavigate }) {
       <div className="brand">
         <div className="brand-mark">S</div>
         <div>
-          <div className="brand-name">Stockwise</div>
-          <div className="brand-sub">Inventory Sync</div>
+          <div className="brand-name">SyncStock</div>
+          <div className="brand-sub">REAL-TIME INVENTORY</div>
         </div>
       </div>
 

@@ -21,12 +21,24 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: { origin: process.env.CLIENT_URL || '*', methods: ['GET', 'POST'] },
+  cors: {
+    origin: process.env.CLIENT_URL || '*',
+    methods: ['GET', 'POST'],
+  },
 });
 
 registerInventorySocket(io);
 
-app.use(cors());
+// Mirror the same origin policy for HTTP. We default to the same value as
+// Socket.io so the two transports agree. '*' remains a safe fallback for
+// local-network development; production deployments should set CLIENT_URL.
+const corsOrigin = process.env.CLIENT_URL || '*';
+app.use(
+  cors({
+    origin: corsOrigin,
+    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+  })
+);
 app.use(express.json());
 
 // Attach io + helper to every request so controllers can emit events

@@ -8,7 +8,7 @@ const fmtTime = (iso) => {
   });
 };
 
-export default function OrdersView({ orders, loading, outlet }) {
+export default function OrdersView({ orders, loading, outlet, compact = false }) {
   if (loading) {
     return (
       <div className="center-loader"><span className="spinner" /> &nbsp; Loading orders…</div>
@@ -17,16 +17,17 @@ export default function OrdersView({ orders, loading, outlet }) {
   if (!orders.length) {
     return (
       <div className="empty">
-        <div className="emoji">📭</div>
+        <div className="empty-icon"><IconReceipt size={26} /></div>
         <div className="title">No orders yet</div>
         <div>When customers buy something from <strong>{outlet}</strong>, it'll show up here in real time.</div>
       </div>
     );
   }
 
+  const list = compact ? orders.slice(0, 5) : orders;
   return (
     <div className="order-list">
-      {orders.map((o) => (
+      {list.map((o) => (
         <div className="order" key={o._id}>
           <div className="left">
             <div className="id">#{o._id.slice(-8).toUpperCase()}</div>
@@ -45,6 +46,11 @@ export default function OrdersView({ orders, loading, outlet }) {
           </div>
         </div>
       ))}
+      {compact && orders.length > 5 && (
+        <div className="sub" style={{ textAlign: 'center', paddingTop: 6 }}>
+          +{orders.length - 5} more in the Orders view
+        </div>
+      )}
     </div>
   );
 }
